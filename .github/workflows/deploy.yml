@@ -1,0 +1,41 @@
+name: Deploy Backend API
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+
+    - name: Install dependencies
+      run: |
+        npm install
+
+    - name: Deploy to VM
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        HOST: ${{ secrets.HOST }}
+        USERNAME: ${{ secrets.USERNAME }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -r ./* $USERNAME@$HOST:/home/azureuser/backend-api
+
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $USERNAME@$HOST << 'EOF'
+          cd /home/azureuser/backend-api || exit
+          npm install || exit
+          nohup node app.js & 
+        EOF
